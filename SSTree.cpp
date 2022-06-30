@@ -3,6 +3,7 @@
 //
 
 #include "SSTree.h"
+const int order = 3;
 
 Node::~Node() {
     if (!isLeaf) {
@@ -10,11 +11,46 @@ Node::~Node() {
     }
 }
 
+double getMean(vector<Point> points, int dim){
+    double sum = 0;
+    for(auto point : points){
+        sum += point[dim];
+    }
+    return (sum/points.size());
+}
+
+//static double getDistance(Point p1, Point p2){
+//    auto x_dif = abs(p1[0] - p2[0]);
+//    auto y_dif = abs(p1[1] - p2[1]);
+//    return sqrt(pow(x_dif,2) + pow(y_dif,2));
+//}
+
 double getDistance(Point a, Point b) {
     double distance = 0.0;
     for (int i = 0; i < DIM; i++)
         distance += pow(a[i] - b[i], 2);
     return sqrt(distance);
+}
+
+double getMaxDistance(Node* node){
+    double maxDist = 0;
+    double tempDist;
+
+    if(node->isLeaf){
+        for(const auto& p : node->points){
+            tempDist = getDistance(node->circle.center, p);
+            if(tempDist > maxDist) maxDist = tempDist;
+        }
+    }
+    else{
+        for(auto e : node->childs){
+            tempDist = getDistance(node->circle.center, e->circle.center);
+            tempDist += node->circle.radius; // No estoy seguro
+            if(tempDist > maxDist) maxDist = tempDist;
+        }
+    }
+
+    return maxDist;
 }
 
 static double getVariance(vector<Point> points, int direction) {
@@ -60,8 +96,78 @@ int getMaxVarianceDirection(Node* node) {
     return direction;
 }
 
-void SSTree::insert(Point point) {
+void Node::updateBoundingEnvelope() {
+    auto points = getCentroids(this);
+    for(int i = 0 ; i < DIM ; i++){
+        this->circle.center[i] = getMean(points, i);
+        this->circle.radius = getMaxDistance(this);
+    }
+}
 
+// Not used
+Node* searchParentLeaf(Node* node, Point target){
+    if(node->isLeaf) return node;
+    else{
+        auto child = findClosestChild(node, target);
+        return searchParentLeaf(child, target);
+    }
+}
+
+bool checkPoint(Node* node, Point point){
+    bool found = false;
+    for(const auto& p : node->points){
+        if(p == point) found = true;
+    }
+    return found;
+}
+
+pair<Node*,Node*> recursiveInsert(Node* node, Point point){
+    pair<Node*,Node*> children;
+    children.first = nullptr;
+    children.second = nullptr;
+
+    if(node->isLeaf){
+        if(checkPoint(node,point)) return children;
+        node->points.push_back(point);
+        node->updateBoundingEnvelope();
+
+        if(node->points.size() <= order) return children;
+    }
+
+    else{
+        auto closestChild = findClosestChild(node, point);
+        children = recursiveInsert(closestChild, point);
+
+        if(children.first == nullptr){
+            node->updateBoundingEnvelope();
+            return children;
+        }
+        else{
+            // TODO
+            // node.childs.remove closestChild
+            // node.childs.remove children.first
+            // node.childs.remove children.second
+            node->updateBoundingEnvelope();
+            if(node->childs.size() <= order){
+                children.first = nullptr;
+                children.second = nullptr;
+                return children;
+            }
+        }
+    }
+
+    // TODO
+    return node.split();
+
+}
+
+void SSTree::insert(Point point) {
+    pair<Node*,Node*> newChildren = recursiveInsert(this->root, point);
+    if(newChildren.first != nullptr) {
+        this->root = new Node(false);
+        this->root->childs.push_back(newChildren.first);
+        this->root->childs.push_back(newChildren.second);
+    }
 }
 
 void SSTree::remove(Point point) {

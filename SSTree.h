@@ -20,7 +20,7 @@
 using namespace std;
 //using Point = cv::Point;
 using Point = vector<double>;
-using Circle = struct {Point center; int radius;};
+using Circle = struct {Point center; double radius;};
 
 struct Node {
     bool isLeaf;
@@ -29,6 +29,7 @@ struct Node {
     vector<Node*> childs; // valido si no es hoja
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
+    void updateBoundingEnvelope();
     ~Node();
 };
 
