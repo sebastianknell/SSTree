@@ -4,6 +4,20 @@
 
 #include "SSTree.h"
 const int order = 3;
+const int m = ceil(order/2);
+
+// TODO
+struct lessThanInternal {
+    inline bool operator() (const Node& node1, const Node& node2){
+        return(node1.circle.center[coord] < node2.circle.center[coord]);
+    }
+};
+
+struct lessThanLeaf {
+    inline bool operator() (const Point& point1, const Point& point){
+        return(point1[coord] < point2[coord]);
+    }
+};
 
 Node::~Node() {
     if (!isLeaf) {
@@ -62,6 +76,22 @@ static double getVariance(vector<Point> points, int direction) {
     return variance / points.size();
 }
 
+int minVarianceSplit(vector<Point> points){
+    double minVariance = DBL_MAX;
+    int splitIndex = m;
+
+    for(int i = m; i < points.size()-m ; i++){
+        // TODO
+        double variance1 = getVariance(points, );
+        double variance2 = getVariance(points, );
+        if(variance1 + variance2 < minVariance) {
+            minVariance = variance1 + variance2;
+            splitIndex = i;
+        }
+    }
+    return splitIndex;
+}
+
 static vector<Point> getCentroids(Node* node) {
     if (node->isLeaf) return node->points;
     vector<Point> centroids;
@@ -94,6 +124,28 @@ int getMaxVarianceDirection(Node* node) {
         direction = i;
     }
     return direction;
+}
+
+// TODO
+void Node::sortEntriesByCoordinate(int coordIndex) {
+    if(this->isLeaf){
+        std::sort(points.begin(), points.end(), lessThanLeaf());
+    }
+    else{
+        std::sort(childs.begin(), childs.end(), lessThanInternal());
+    }
+}
+
+// TODO
+int Node::findSplitIndex() {
+    int coordinateIndex = getMaxVarianceDirection(this);
+    this.sortEntriesByCoordinate(coordinateIndex);
+
+    for(auto p : getCentroids(this)){
+        points.push_back(p);
+    }
+
+    return minVarianceSplit(points, coordinateIndex);
 }
 
 void Node::updateBoundingEnvelope() {
@@ -157,7 +209,7 @@ pair<Node*,Node*> recursiveInsert(Node* node, Point point){
     }
 
     // TODO
-    return node.split();
+    return node->split();
 
 }
 

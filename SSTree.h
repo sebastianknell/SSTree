@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#include <cfloat>
 #include <opencv2/opencv.hpp>
 
 #ifndef DIM
@@ -30,6 +31,10 @@ struct Node {
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
     void updateBoundingEnvelope();
+    pair<Node*,Node*> split();
+    int findSplitIndex();
+    void sortEntriesByCoordinate(int coordIndex);
+
     ~Node();
 };
 
