@@ -3,7 +3,7 @@
 //
 
 #include "SSTree.h"
-const int order = 3;
+const int order = DIM;
 const int m = ceil(order/2);
 
 // TODO
