@@ -3,21 +3,9 @@
 //
 
 #include "SSTree.h"
+
 const int order = DIM;
 const int m = ceil(order/2);
-
-// TODO
-struct lessThanInternal {
-    inline bool operator() (const Node& node1, const Node& node2){
-        return(node1.circle.center[coord] < node2.circle.center[coord]);
-    }
-};
-
-struct lessThanLeaf {
-    inline bool operator() (const Point& point1, const Point& point){
-        return(point1[coord] < point2[coord]);
-    }
-};
 
 Node::~Node() {
     if (!isLeaf) {
@@ -32,12 +20,6 @@ double getMean(vector<Point> points, int dim){
     }
     return (sum/points.size());
 }
-
-//static double getDistance(Point p1, Point p2){
-//    auto x_dif = abs(p1[0] - p2[0]);
-//    auto y_dif = abs(p1[1] - p2[1]);
-//    return sqrt(pow(x_dif,2) + pow(y_dif,2));
-//}
 
 double getDistance(Point a, Point b) {
     double distance = 0.0;
@@ -76,20 +58,13 @@ static double getVariance(vector<Point> points, int direction) {
     return variance / points.size();
 }
 
-int minVarianceSplit(vector<Point> points){
-    double minVariance = DBL_MAX;
-    int splitIndex = m;
-
-    for(int i = m; i < points.size()-m ; i++){
-        // TODO
-        double variance1 = getVariance(points, );
-        double variance2 = getVariance(points, );
-        if(variance1 + variance2 < minVariance) {
-            minVariance = variance1 + variance2;
-            splitIndex = i;
-        }
-    }
-    return splitIndex;
+static double getVarianceInRange(vector<Point> points, int direction, int first, int last) {
+    double mean = 0;
+    for (int i = first; i <= last; i++) mean += points[i][direction];
+    mean /= points.size();
+    double variance = 0;
+    for (int i = first; i <= last; i++) variance += pow(points[i][direction] - mean, 2);
+    return variance / points.size();
 }
 
 static vector<Point> getCentroids(Node* node) {
@@ -126,40 +101,55 @@ int getMaxVarianceDirection(Node* node) {
     return direction;
 }
 
-// TODO
-void Node::sortEntriesByCoordinate(int coordIndex) {
-    if(this->isLeaf){
-        std::sort(points.begin(), points.end(), lessThanLeaf());
+static void sortEntriesByCoordinate(Node* node, int coordIndex) {
+    static auto lessThanLeaf = [coordIndex](Point a, Point b) {
+        return a[coordIndex] < b[coordIndex];
+    };
+    static auto lessThanInternal = [coordIndex](Node* a, Node* b) {
+        return a->circle.center[coordIndex] < b->circle.center[coordIndex];
+    };
+
+    if(node->isLeaf) {
+        std::sort(node->points.begin(), node->points.end(), lessThanLeaf);
     }
     else{
-        std::sort(childs.begin(), childs.end(), lessThanInternal());
+        std::sort(node->childs.begin(), node->childs.end(), lessThanInternal);
     }
 }
 
-// TODO
-int Node::findSplitIndex() {
-    int coordinateIndex = getMaxVarianceDirection(this);
-    this.sortEntriesByCoordinate(coordinateIndex);
+int minVarianceSplit(vector<Point> points, int coordIndex){
+    double minVariance = INT_MAX;
+    int splitIndex = m;
 
-    for(auto p : getCentroids(this)){
-        points.push_back(p);
+    for(int i = m; i < points.size()-m ; i++){
+        double variance1 = getVarianceInRange(points, coordIndex, 0, i-1);
+        double variance2 = getVarianceInRange(points, coordIndex, i, points.size()-1);
+        if(variance1 + variance2 < minVariance) {
+            minVariance = variance1 + variance2;
+            splitIndex = i;
+        }
     }
-
-    return minVarianceSplit(points, coordinateIndex);
+    return splitIndex;
 }
 
-void Node::updateBoundingEnvelope() {
-    auto points = getCentroids(this);
-    for(int i = 0 ; i < DIM ; i++){
-        this->circle.center[i] = getMean(points, i);
-        this->circle.radius = getMaxDistance(this);
+static int findSplitIndex(Node* node) {
+    int coordinateIndex = getMaxVarianceDirection(node);
+    sortEntriesByCoordinate(node, coordinateIndex);
+    return minVarianceSplit(getCentroids(node), coordinateIndex);
+}
+
+void updateBoundingEnvelope(Node* node) {
+    auto points = getCentroids(node);
+    for (int i = 0 ; i < DIM ; i++) {
+        node->circle.center[i] = getMean(points, i);
+        node->circle.radius = getMaxDistance(node);
     }
 }
 
 // Not used
 Node* searchParentLeaf(Node* node, Point target){
-    if(node->isLeaf) return node;
-    else{
+    if (node->isLeaf) return node;
+    else {
         auto child = findClosestChild(node, target);
         return searchParentLeaf(child, target);
     }
@@ -167,61 +157,77 @@ Node* searchParentLeaf(Node* node, Point target){
 
 bool checkPoint(Node* node, Point point){
     bool found = false;
-    for(const auto& p : node->points){
-        if(p == point) found = true;
+    for(const auto &p : node->points){
+        if (p == point) found = true;
     }
     return found;
 }
 
-pair<Node*,Node*> recursiveInsert(Node* node, Point point){
+static pair<Node*,Node*> splitNode(Node* node) {
+    auto splitIndex = findSplitIndex(node);
+    Node* newNode1 = nullptr;
+    Node* newNode2 = nullptr;
+    if (node->isLeaf) {
+        newNode1 = new Node(true);
+        newNode1->points = vector<Point>(node->points.begin(), node->points.begin()+splitIndex-1);
+        newNode2 = new Node(true);
+        newNode2->points = vector<Point>(node->points.begin()+splitIndex, node->points.end());
+    }
+    else {
+        newNode1 = new Node(true);
+        newNode1->childs = vector<Node*>(node->childs.begin(), node->childs.begin()+splitIndex-1);
+        newNode2 = new Node(true);
+        newNode2->childs = vector<Node*>(node->childs.begin(), node->childs.begin()+splitIndex-1);
+    }
+    return {newNode1, newNode2};
+}
+
+static pair<Node*,Node*> recursiveInsert(Node* node, Point point){
     pair<Node*,Node*> children;
     children.first = nullptr;
     children.second = nullptr;
 
-    if(node->isLeaf){
-        if(checkPoint(node,point)) return children;
+    if (node->isLeaf) {
+        if (checkPoint(node, point)) return children;
         node->points.push_back(point);
-        node->updateBoundingEnvelope();
+        updateBoundingEnvelope(node);
 
-        if(node->points.size() <= order) return children;
+        if (node->points.size() <= DIM) return children;
     }
 
-    else{
+    else {
         auto closestChild = findClosestChild(node, point);
         children = recursiveInsert(closestChild, point);
 
-        if(children.first == nullptr){
-            node->updateBoundingEnvelope();
+        if (children.first == nullptr) {
+            updateBoundingEnvelope(node);
             return children;
         }
-        else{
-            // TODO
-            // node.childs.remove closestChild
-            // node.childs.remove children.first
-            // node.childs.remove children.second
-            node->updateBoundingEnvelope();
-            if(node->childs.size() <= order){
+        else {
+            auto iter = std::find_if(node->childs.begin(), node->childs.end(), [closestChild](Node* n) { return n == closestChild; });
+            node->childs.erase(iter);
+            node->childs.push_back(children.first);
+            node->childs.push_back(children.second);
+            updateBoundingEnvelope(node);
+            if (node->childs.size() <= DIM) {
                 children.first = nullptr;
                 children.second = nullptr;
                 return children;
             }
         }
     }
-
-    // TODO
-    return node->split();
-
+    return splitNode(node);
 }
 
-void SSTree::insert(Point point) {
-    pair<Node*,Node*> newChildren = recursiveInsert(this->root, point);
+void SSTree::insert(Point &point) {
+    pair<Node*,Node*> newChildren = recursiveInsert(root, point);
     if(newChildren.first != nullptr) {
-        this->root = new Node(false);
-        this->root->childs.push_back(newChildren.first);
-        this->root->childs.push_back(newChildren.second);
+        root = new Node(false);
+        root->childs.push_back(newChildren.first);
+        root->childs.push_back(newChildren.second);
     }
 }
 
-void SSTree::remove(Point point) {
+void SSTree::remove(Point &point) {
 
 }

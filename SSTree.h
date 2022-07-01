@@ -30,11 +30,6 @@ struct Node {
     vector<Node*> childs; // valido si no es hoja
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
-    void updateBoundingEnvelope();
-    pair<Node*,Node*> split();
-    int findSplitIndex();
-    void sortEntriesByCoordinate(int coordIndex);
-
     ~Node();
 };
 
@@ -44,8 +39,8 @@ class SSTree {
 public:
     explicit SSTree(int order = 3): order(order), root(nullptr) {};
     ~SSTree() { delete root; };
-    void insert(Point);
-    void remove(Point);
+    void insert(Point&);
+    void remove(Point&);
 };
 
 
