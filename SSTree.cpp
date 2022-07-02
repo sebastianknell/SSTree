@@ -40,7 +40,7 @@ double getMaxDistance(Node* node){
     else{
         for(auto e : node->childs){
             tempDist = getDistance(node->circle.center, e->circle.center);
-            tempDist += node->circle.radius; // No estoy seguro
+            tempDist += e->circle.radius;
             if(tempDist > maxDist) maxDist = tempDist;
         }
     }
