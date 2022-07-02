@@ -219,6 +219,139 @@ static pair<Node*,Node*> recursiveInsert(Node* node, Point point){
     return splitNode(node);
 }
 
+bool Node::intersectsPoint(Point point) {
+    return getDistance(this->circle.center, point) <= this->circle.radius;
+}
+
+vector<Node*> Node::siblingsToBorrowFrom(Node* node, int m) {
+    vector<Node*> siblings;
+    for (auto childNode : this->childs) {
+        if (childNode != node) {
+            if (childNode->isLeaf) {
+                if (childNode->points.size() > m) siblings.push_back(childNode);
+            } else {
+                if (childNode->childs.size() > m) siblings.push_back(childNode);
+            }
+        }
+    }
+    return siblings;
+}
+
+void Node::borrowFromSiblings(vector<Node*> siblings) {
+    auto p = findClosestEntryInNodesList(siblings, this);
+    auto closestEntry = p.first;
+    auto closestSibling = p.second;
+
+    closestSibling.deleteEntry(closestEntry);
+    closestSibling.updateBoundingEnvelope();
+
+    this->addEntry(closestEntry);
+    this->updateBoundingEnvelope();
+}
+
+Point getClosestCentroidTo(Node* node) {
+    Point* p = nullptr;
+
+    // Falta cambiar
+    if (node->isLeaf) {
+        for (auto point : node->points) {
+            if (p == nullptr || getDistance(point, node->circle.center) < getDistance(*p, node->circle.center)) {
+                p = &point;
+            }
+        }
+    } else {
+        for (auto child : node->childs) {
+            if (p == nullptr || getDistance(child->circle.center, node->circle.center) < getDistance(*p, node->circle.center)) {
+                p = &child->circle.center;
+            }
+        }
+    }
+    return *p;
+}
+
+static bool closerThan(Point closestEntryInNode, Point* closestEntry, Node* targetNode) {
+    if (
+        closestEntry == nullptr ||
+        getDistance(closestEntryInNode, targetNode->circle.center) < getDistance(*closestEntry, targetNode->circle.center)
+        )
+        return true;
+    return false;
+}
+
+static pair<Point, Node> findClosestEntryInNodesList(vector<Node*> nodes, Node* targetNode) {
+    Point* closestEntry = nullptr;
+    Node* closestNode = nullptr;
+    for (auto node : nodes) {
+        Point closestEntryInNode = node->getClosestCentroidTo(targetNode);
+        if (closerThan(closestEntryInNode, closestEntry, targetNode)) {
+            closestEntry = &closestEntryInNode;
+            closestNode = node;
+        }
+    }
+    return make_pair(*closestEntry, *closestNode);
+}
+
+pair<bool, bool> SSTree::RemoveRec(Node* node, Point point) {
+    bool deleted = false;
+    Node* nodeToFix = nullptr;
+    if (node->isLeaf) {
+        bool areEqual = true;
+        int index = -1;
+        for (int i=0; i<node->points.size(); i++) {
+            for (int j=0; j<node->points[i].size(); j++) {
+                if (node->points[i][j] == point[j])
+                    areEqual = false;
+            }
+
+            if (areEqual) {             // Found
+                index = i;
+                break;
+            } else {                   // Not found
+                areEqual = true;
+            }
+        }
+        if (areEqual && index != -1) {
+            // Delete node
+            auto delete_index = node->points.begin() + index;
+            if (delete_index != node->points.end()) {
+                node->points.erase(delete_index);
+                return make_pair(true, node->points.size() < m);
+            } else {
+                cout << "Index out of range in \"Remove\" function\n";
+            }
+        } else {
+            return make_pair(false, false);
+        }
+    } else {
+        for (auto childNode : node->childs) {
+            if (childNode->intersectsPoint(point)) {
+                auto p = RemoveRec(childNode, point);
+                bool deleted = p.first;
+                bool violatesInvariant = p.second;
+                if (violatesInvariant)
+                    nodeToFix = childNode;
+                if (deleted)
+                    break;
+            }
+        }
+    }
+    if (nodeToFix == nullptr) {
+        if (deleted) {
+            node->updateBoundingEnvelope();
+        }
+        return make_pair(deleted, false);
+    } else {
+        auto siblings = node->siblingsToBorrowFrom(nodeToFix, this->m);
+        if (!siblings.empty()) {
+            nodeToFix->borrowFromSiblings(siblings);
+        } else {
+            node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
+        }
+        node->updateBoundingEnvelope();
+        return make_pair(true, node->childs.size() < m);
+    }
+}
+
 void SSTree::insert(Point &point) {
     pair<Node*,Node*> newChildren = recursiveInsert(root, point);
     if(newChildren.first != nullptr) {
@@ -229,5 +362,5 @@ void SSTree::insert(Point &point) {
 }
 
 void SSTree::remove(Point &point) {
-
+    RemoveRec(root, point);
 }

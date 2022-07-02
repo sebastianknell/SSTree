@@ -31,16 +31,27 @@ struct Node {
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
     ~Node();
+    bool intersectsPoint(Point);
+    vector<Node*> siblingsToBorrowFrom(Node*, int);
+    void borrowFromSiblings(vector<Node*>);
+    void updateBoundingEnvelope();
+    Point getClosestCentroidTo(Node*);
+
 };
 
 class SSTree {
     Node* root;
     int order;
+    int M;
+    int m;
+
 public:
     explicit SSTree(int order = 3): order(order), root(nullptr) {};
     ~SSTree() { delete root; };
     void insert(Point&);
     void remove(Point&);
+
+    pair<bool, bool> SSTree::RemoveRec(Node*, Point);
 };
 
 
