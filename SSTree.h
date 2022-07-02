@@ -19,9 +19,7 @@
 #define m 2
 
 using namespace std;
-//using Point = cv::Point;
 using Point = vector<double>;
-using Circle = struct {Point center; double radius;};
 
 extern int radius;
 static cv::Scalar colors[] = {
@@ -32,6 +30,8 @@ static cv::Scalar colors[] = {
         {141, 232, 195},
         {107, 203, 255}
 };
+
+struct Circle {Point center; double radius; Circle(): center(DIM), radius(0) {}};
 
 struct Node {
     bool isLeaf;

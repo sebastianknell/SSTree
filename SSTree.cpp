@@ -165,20 +165,18 @@ bool checkPoint(Node* node, Point &point){
 
 static pair<Node*,Node*> splitNode(Node* node) {
     auto splitIndex = findSplitIndex(node);
-    Node* newNode1 = nullptr;
-    Node* newNode2 = nullptr;
+    Node* newNode1 = new Node(node->isLeaf);
+    Node* newNode2 = new Node(node->isLeaf);
     if (node->isLeaf) {
-        newNode1 = new Node(true);
-        newNode1->points = vector<Point>(node->points.begin(), node->points.begin()+splitIndex-1);
-        newNode2 = new Node(true);
+        newNode1->points = vector<Point>(node->points.begin(), node->points.begin()+splitIndex);
         newNode2->points = vector<Point>(node->points.begin()+splitIndex, node->points.end());
     }
     else {
-        newNode1 = new Node(true);
-        newNode1->childs = vector<Node*>(node->childs.begin(), node->childs.begin()+splitIndex-1);
-        newNode2 = new Node(true);
-        newNode2->childs = vector<Node*>(node->childs.begin(), node->childs.begin()+splitIndex-1);
+        newNode1->childs = vector<Node*>(node->childs.begin(), node->childs.begin()+splitIndex);
+        newNode2->childs = vector<Node*>(node->childs.begin()+splitIndex, node->childs.end());
     }
+    updateBoundingEnvelope(newNode1);
+    updateBoundingEnvelope(newNode2);
     return {newNode1, newNode2};
 }
 
@@ -224,7 +222,6 @@ void SSTree::insert(Point &point) {
         root = new Node(true);
         root->points.push_back(point);
     }
-    // TODO fails because circle is not initialized
     pair<Node*,Node*> newChildren = recursiveInsert(root, point);
     if(newChildren.first != nullptr) {
         root = new Node(false);
@@ -383,7 +380,7 @@ void showNode(Node* node, cv::InputOutputArray &img) {
     }
     else {
         for (const auto &c : node->childs) {
-            cv::circle(img, {(int)c->circle.center[0], (int)c->circle.center[1]}, c->circle.radius, colors[colorIdx%6], 2);
+            cv::circle(img, {(int)c->circle.center[0], (int)c->circle.center[1]}, (int)c->circle.radius, colors[colorIdx%6], 2);
             showNode(c, img);
         }
     }
