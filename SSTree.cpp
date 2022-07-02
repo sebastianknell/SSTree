@@ -290,16 +290,78 @@ static pair<Point, Node*> findClosestEntryInNodesList(vector<Node*> &nodes, Node
     return make_pair(*closestEntry, closestNode);
 }
 
-void borrowFromSiblings(Node* node, vector<Node*> siblings) {
+void Node::addEntry(Point* p) {
+
+}
+
+void Node::deleteEntry(Point* p) {
+    // aqui si son las 2 am y F
+    int index, i = 0;
+    if (this->isLeaf) {
+        for (auto point : this->points) {
+            if (point == *p) {  // comparar punto con punto
+                index = i;
+                break;
+            }
+            i++;
+        }
+        // borrar
+        auto deleteIndex = this->points.begin() + index;
+        this->points.erase(deleteIndex);
+    } else {
+        for (auto node : this->childs) {
+            if (node->circle.center == *p) {  // comparar centroide con punto
+                index = i;
+                break;
+            }
+            i++;
+        }
+        // borrar
+        auto deleteIndex = this->childs.begin() + index;
+        this->childs.erase(deleteIndex);
+    }
+}
+
+static void borrowFromSiblings(Node* node, vector<Node*> siblings) {
     auto p = findClosestEntryInNodesList(siblings, node);
-    auto closestEntry = p.first;
+    auto closestEntry = &p.first;
     auto closestSibling = p.second;
 
-//    closestSibling.deleteEntry(closestEntry);
+    closestSibling->deleteEntry(closestEntry);
     updateBoundingEnvelope(closestSibling);
 
-//    node->addEntry(closestEntry);
+    node->addEntry(closestEntry);
     updateBoundingEnvelope(node);
+}
+
+static Node* merge(Node* firstNode, Node* secondNode) {
+    if(firstNode->isLeaf == secondNode->isLeaf) {
+        if (firstNode->isLeaf) {
+            vector<Point> c(std::begin(firstNode->points), std::end(firstNode->points));
+            c.insert(c.end(), secondNode->points.begin(), secondNode->points.end());
+            return new Node(true, c);
+        } else {
+            vector<Node*> c(std::begin(firstNode->childs), std::end(firstNode->childs));
+            c.insert(c.end(), secondNode->childs.begin(), secondNode->childs.end());
+            return new Node(false, c);
+        }
+    }
+}
+
+void Node::mergeChildren(Node* firstChild, Node* secondChild) {
+    if (secondChild != nullptr) {
+        Node* newchild = merge(firstChild, secondChild);
+
+        /// NO SÉ SI SE PUEDEN BUSCAR PUNTEROS CON FIND
+        vector<Node*>::iterator pos = find(this->childs.begin(), this->childs.end(), firstChild);
+        if(pos!=this->childs.end()) 
+            this->childs.erase(pos);
+        pos = find(this->childs.begin(), this->childs.end(), secondChild);
+        if(pos!=this->childs.end()) 
+            this->childs.erase(pos);
+        
+        this->childs.push_back(newchild);
+    }
 }
 
 pair<bool, bool> recursiveRemove(Node* node, Point point) {
@@ -325,6 +387,7 @@ pair<bool, bool> recursiveRemove(Node* node, Point point) {
             // Delete node
             auto delete_index = node->points.begin() + index;
             if (delete_index != node->points.end()) {
+                cout << "DELETE: " << node->points[index][0] << " - " << node->points[index][1] << endl;
                 node->points.erase(delete_index);
                 return make_pair(true, node->points.size() < m);
             } else {
@@ -357,7 +420,7 @@ pair<bool, bool> recursiveRemove(Node* node, Point point) {
             borrowFromSiblings(nodeToFix, siblings);
         } else {
             // TODO
-//            node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
+            node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
         }
         updateBoundingEnvelope(node);
         return make_pair(true, node->childs.size() < m);

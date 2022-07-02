@@ -38,7 +38,22 @@ struct Node {
     vector<Node*> childs; // valido si no es hoja
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
+
+    Node(bool isLeaf, vector<Point> pnts) {
+        this->isLeaf = isLeaf;
+        points = pnts;
+    }
+
+    Node(bool isLeaf, vector<Node*> chld) {
+        this->isLeaf = isLeaf;
+        childs = chld;
+    }
+
     ~Node();
+    void mergeChildren(Node*, Node*);
+    void addEntry(Point*);
+    void deleteEntry(Point*);
+    Node* findSiblingToMergeTo(Node*){};
 };
 
 class SSTree {
