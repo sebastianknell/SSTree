@@ -14,44 +14,43 @@
 #include <cfloat>
 #include <opencv2/opencv.hpp>
 
-#ifndef DIM
 #define DIM 2
-#endif
+#define M 3
+#define m 2
 
 using namespace std;
 //using Point = cv::Point;
 using Point = vector<double>;
 using Circle = struct {Point center; double radius;};
 
+extern int radius;
+static cv::Scalar colors[] = {
+        {106, 100, 208},
+        {233, 145, 198},
+        {255, 221, 137},
+        {255, 170, 130},
+        {141, 232, 195},
+        {107, 203, 255}
+};
+
 struct Node {
     bool isLeaf;
     Circle circle;
-    int minRadius;
     vector<Node*> childs; // valido si no es hoja
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
     ~Node();
-    bool intersectsPoint(Point);
-    vector<Node*> siblingsToBorrowFrom(Node*, int);
-    void borrowFromSiblings(vector<Node*>);
-    void updateBoundingEnvelope();
-    Point getClosestCentroidTo(Node*);
-
 };
 
 class SSTree {
     Node* root;
     int order;
-    int M;
-    int m;
-
 public:
     explicit SSTree(int order = 3): order(order), root(nullptr) {};
     ~SSTree() { delete root; };
     void insert(Point&);
     void remove(Point&);
-
-    pair<bool, bool> SSTree::RemoveRec(Node*, Point);
+    void show(cv::InputOutputArray&);
 };
 
 

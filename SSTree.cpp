@@ -4,8 +4,7 @@
 
 #include "SSTree.h"
 
-const int order = DIM;
-const int m = ceil(order/2);
+int radius = 4;
 
 Node::~Node() {
     if (!isLeaf) {
@@ -13,7 +12,7 @@ Node::~Node() {
     }
 }
 
-double getMean(vector<Point> points, int dim){
+static double getMean(vector<Point> &points, int dim){
     double sum = 0;
     for(auto point : points){
         sum += point[dim];
@@ -21,7 +20,7 @@ double getMean(vector<Point> points, int dim){
     return (sum/points.size());
 }
 
-double getDistance(Point a, Point b) {
+static double getDistance(Point &a, Point &b) {
     double distance = 0.0;
     for (int i = 0; i < DIM; i++)
         distance += pow(a[i] - b[i], 2);
@@ -33,7 +32,7 @@ double getMaxDistance(Node* node){
     double tempDist;
 
     if(node->isLeaf){
-        for(const auto& p : node->points){
+        for(auto &p : node->points){
             tempDist = getDistance(node->circle.center, p);
             if(tempDist > maxDist) maxDist = tempDist;
         }
@@ -75,7 +74,7 @@ static vector<Point> getCentroids(Node* node) {
     return centroids;
 }
 
-static Node* findClosestChild(Node* node, Point p) {
+static Node* findClosestChild(Node* node, Point &p) {
     assert(!node->isLeaf);
     double min = INT_MAX;
     Node* result = nullptr;
@@ -117,7 +116,7 @@ static void sortEntriesByCoordinate(Node* node, int coordIndex) {
     }
 }
 
-int minVarianceSplit(vector<Point> points, int coordIndex){
+int minVarianceSplit(vector<Point> &points, int coordIndex){
     double minVariance = INT_MAX;
     int splitIndex = m;
 
@@ -135,7 +134,8 @@ int minVarianceSplit(vector<Point> points, int coordIndex){
 static int findSplitIndex(Node* node) {
     int coordinateIndex = getMaxVarianceDirection(node);
     sortEntriesByCoordinate(node, coordinateIndex);
-    return minVarianceSplit(getCentroids(node), coordinateIndex);
+    auto centroids = getCentroids(node);
+    return minVarianceSplit(centroids, coordinateIndex);
 }
 
 void updateBoundingEnvelope(Node* node) {
@@ -147,7 +147,7 @@ void updateBoundingEnvelope(Node* node) {
 }
 
 // Not used
-Node* searchParentLeaf(Node* node, Point target){
+Node* searchParentLeaf(Node* node, Point &target){
     if (node->isLeaf) return node;
     else {
         auto child = findClosestChild(node, target);
@@ -155,7 +155,7 @@ Node* searchParentLeaf(Node* node, Point target){
     }
 }
 
-bool checkPoint(Node* node, Point point){
+bool checkPoint(Node* node, Point &point){
     bool found = false;
     for(const auto &p : node->points){
         if (p == point) found = true;
@@ -182,7 +182,7 @@ static pair<Node*,Node*> splitNode(Node* node) {
     return {newNode1, newNode2};
 }
 
-static pair<Node*,Node*> recursiveInsert(Node* node, Point point){
+static pair<Node*,Node*> recursiveInsert(Node* node, Point &point){
     pair<Node*,Node*> children;
     children.first = nullptr;
     children.second = nullptr;
@@ -192,7 +192,7 @@ static pair<Node*,Node*> recursiveInsert(Node* node, Point point){
         node->points.push_back(point);
         updateBoundingEnvelope(node);
 
-        if (node->points.size() <= DIM) return children;
+        if (node->points.size() <= M) return children;
     }
 
     else {
@@ -209,7 +209,7 @@ static pair<Node*,Node*> recursiveInsert(Node* node, Point point){
             node->childs.push_back(children.first);
             node->childs.push_back(children.second);
             updateBoundingEnvelope(node);
-            if (node->childs.size() <= DIM) {
+            if (node->childs.size() <= M) {
                 children.first = nullptr;
                 children.second = nullptr;
                 return children;
@@ -219,13 +219,27 @@ static pair<Node*,Node*> recursiveInsert(Node* node, Point point){
     return splitNode(node);
 }
 
-bool Node::intersectsPoint(Point point) {
-    return getDistance(this->circle.center, point) <= this->circle.radius;
+void SSTree::insert(Point &point) {
+    if (!root) {
+        root = new Node(true);
+        root->points.push_back(point);
+    }
+    // TODO fails because circle is not initialized
+    pair<Node*,Node*> newChildren = recursiveInsert(root, point);
+    if(newChildren.first != nullptr) {
+        root = new Node(false);
+        root->childs.push_back(newChildren.first);
+        root->childs.push_back(newChildren.second);
+    }
 }
 
-vector<Node*> Node::siblingsToBorrowFrom(Node* node, int m) {
+bool intersectsPoint(Node* node, Point &point) {
+    return getDistance(node->circle.center, point) <= node->circle.radius;
+}
+
+vector<Node*> siblingsToBorrowFrom(Node* node) {
     vector<Node*> siblings;
-    for (auto childNode : this->childs) {
+    for (auto childNode : node->childs) {
         if (childNode != node) {
             if (childNode->isLeaf) {
                 if (childNode->points.size() > m) siblings.push_back(childNode);
@@ -235,18 +249,6 @@ vector<Node*> Node::siblingsToBorrowFrom(Node* node, int m) {
         }
     }
     return siblings;
-}
-
-void Node::borrowFromSiblings(vector<Node*> siblings) {
-    auto p = findClosestEntryInNodesList(siblings, this);
-    auto closestEntry = p.first;
-    auto closestSibling = p.second;
-
-    closestSibling.deleteEntry(closestEntry);
-    closestSibling.updateBoundingEnvelope();
-
-    this->addEntry(closestEntry);
-    this->updateBoundingEnvelope();
 }
 
 Point getClosestCentroidTo(Node* node) {
@@ -269,29 +271,41 @@ Point getClosestCentroidTo(Node* node) {
     return *p;
 }
 
-static bool closerThan(Point closestEntryInNode, Point* closestEntry, Node* targetNode) {
-    if (
-        closestEntry == nullptr ||
-        getDistance(closestEntryInNode, targetNode->circle.center) < getDistance(*closestEntry, targetNode->circle.center)
-        )
+static bool closerThan(Point &closestEntryInNode, Point *closestEntry, Node *targetNode) {
+    if (closestEntry == nullptr ||
+        getDistance(closestEntryInNode, targetNode->circle.center) <
+        getDistance(*closestEntry, targetNode->circle.center)
+            )
         return true;
     return false;
 }
 
-static pair<Point, Node> findClosestEntryInNodesList(vector<Node*> nodes, Node* targetNode) {
+static pair<Point, Node*> findClosestEntryInNodesList(vector<Node*> &nodes, Node* targetNode) {
     Point* closestEntry = nullptr;
     Node* closestNode = nullptr;
     for (auto node : nodes) {
-        Point closestEntryInNode = node->getClosestCentroidTo(targetNode);
+        Point closestEntryInNode = getClosestCentroidTo(targetNode);
         if (closerThan(closestEntryInNode, closestEntry, targetNode)) {
             closestEntry = &closestEntryInNode;
             closestNode = node;
         }
     }
-    return make_pair(*closestEntry, *closestNode);
+    return make_pair(*closestEntry, closestNode);
 }
 
-pair<bool, bool> SSTree::RemoveRec(Node* node, Point point) {
+void borrowFromSiblings(Node* node, vector<Node*> siblings) {
+    auto p = findClosestEntryInNodesList(siblings, node);
+    auto closestEntry = p.first;
+    auto closestSibling = p.second;
+
+//    closestSibling.deleteEntry(closestEntry);
+    updateBoundingEnvelope(closestSibling);
+
+//    node->addEntry(closestEntry);
+    updateBoundingEnvelope(node);
+}
+
+pair<bool, bool> recursiveRemove(Node* node, Point point) {
     bool deleted = false;
     Node* nodeToFix = nullptr;
     if (node->isLeaf) {
@@ -324,8 +338,8 @@ pair<bool, bool> SSTree::RemoveRec(Node* node, Point point) {
         }
     } else {
         for (auto childNode : node->childs) {
-            if (childNode->intersectsPoint(point)) {
-                auto p = RemoveRec(childNode, point);
+            if (intersectsPoint(childNode, point)) {
+                auto p = recursiveRemove(childNode, point);
                 bool deleted = p.first;
                 bool violatesInvariant = p.second;
                 if (violatesInvariant)
@@ -337,30 +351,45 @@ pair<bool, bool> SSTree::RemoveRec(Node* node, Point point) {
     }
     if (nodeToFix == nullptr) {
         if (deleted) {
-            node->updateBoundingEnvelope();
+            updateBoundingEnvelope(node);
         }
         return make_pair(deleted, false);
     } else {
-        auto siblings = node->siblingsToBorrowFrom(nodeToFix, this->m);
+        auto siblings = siblingsToBorrowFrom(nodeToFix);
         if (!siblings.empty()) {
-            nodeToFix->borrowFromSiblings(siblings);
+            borrowFromSiblings(nodeToFix, siblings);
         } else {
-            node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
+            // TODO
+//            node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
         }
-        node->updateBoundingEnvelope();
+        updateBoundingEnvelope(node);
         return make_pair(true, node->childs.size() < m);
     }
 }
 
-void SSTree::insert(Point &point) {
-    pair<Node*,Node*> newChildren = recursiveInsert(root, point);
-    if(newChildren.first != nullptr) {
-        root = new Node(false);
-        root->childs.push_back(newChildren.first);
-        root->childs.push_back(newChildren.second);
+void SSTree::remove(Point &point) {
+    recursiveRemove(root, point);
+}
+
+int colorIdx = 0;
+
+void showNode(Node* node, cv::InputOutputArray &img) {
+    if (node == nullptr) return;
+    colorIdx++;
+    if (node->isLeaf) {
+        for (auto &p : node->points) {
+            cv::circle(img, {(int)p[0], (int)p[1]}, radius, colors[3], -1);
+        }
+    }
+    else {
+        for (const auto &c : node->childs) {
+            cv::circle(img, {(int)c->circle.center[0], (int)c->circle.center[1]}, c->circle.radius, colors[colorIdx%6], 2);
+            showNode(c, img);
+        }
     }
 }
 
-void SSTree::remove(Point &point) {
-    RemoveRec(root, point);
+void SSTree::show(cv::InputOutputArray &img) {
+    colorIdx = 0;
+    showNode(root, img);
 }
