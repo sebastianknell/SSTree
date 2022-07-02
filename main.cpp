@@ -4,8 +4,6 @@ const int height = 720;
 const int width = 1080;
 const string windowName = "SSTree Visualization";
 cv::Mat img(height, width, CV_8UC3, {255, 255, 255});
-bool drawing = false;
-vector<Point> currentDrawing;
 SSTree sstree;
 
 static void clickHandler(int event, int x, int y, int flags, void*) {

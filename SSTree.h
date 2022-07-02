@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
-#include <cfloat>
 #include <opencv2/opencv.hpp>
 
 #define DIM 2
