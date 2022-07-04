@@ -18,7 +18,18 @@
 #define m 2
 
 using namespace std;
+
 using Point = vector<double>;
+
+static bool areEqualPoints(Point p1, Point p2) {
+    cout << p1[0] << " " << p1[1] << "-" << p2[0] << " " << p2[1] << endl;
+    for (int i = 0; i < DIM; i++) {
+        if (fabs(p1[i] - p2[i]) > 20.0) {
+            return false;
+        }
+    }
+    return true;
+}
 
 extern int radius;
 static cv::Scalar colors[] = {
@@ -32,12 +43,16 @@ static cv::Scalar colors[] = {
 
 struct Circle {Point center; double radius; Circle(): center(DIM), radius(0) {}};
 
+struct Entry;
+
 struct Node {
     bool isLeaf;
     Circle circle;
     vector<Node*> childs; // valido si no es hoja
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
+
+    Node(){}
 
     Node(bool isLeaf, vector<Point> pnts) {
         this->isLeaf = isLeaf;
@@ -51,16 +66,39 @@ struct Node {
 
     ~Node();
     void mergeChildren(Node*, Node*);
-    void addEntry(Point*);
-    void deleteEntry(Point*);
-    Node* findSiblingToMergeTo(Node*){};
+    void addEntry(Entry*);
+    void deleteEntry(Entry*);
+    vector<Node*> siblingsToBorrowFrom(Node*);
+
+    Entry* getClosestCentroidTo(Node*);
+    Node* findSiblingToMergeTo(Node* n);
+};
+
+struct Entry {
+    bool value; // 0 = Point, 1 = Node
+    Node* node;
+    Point* point;
+
+    Entry() {
+        node = new Node;
+        point = new Point;
+    };
+
+    Entry(Node* n) {
+        node = n;
+        value = 1;
+    }
+
+    Entry(Point* p) {
+        point = p;
+        value = 0;
+    }
 };
 
 class SSTree {
     Node* root;
-    int order;
 public:
-    explicit SSTree(int order = 3): order(order), root(nullptr) {};
+    explicit SSTree(): root(nullptr) {};
     ~SSTree() { delete root; };
     void insert(Point&);
     void remove(Point&);

@@ -40,7 +40,7 @@ double getMaxDistance(Node* node){
     else{
         for(auto e : node->childs){
             tempDist = getDistance(node->circle.center, e->circle.center);
-            tempDist += node->circle.radius; // No estoy seguro
+            tempDist += e->circle.radius; // No estoy seguro
             if(tempDist > maxDist) maxDist = tempDist;
         }
     }
@@ -234,10 +234,10 @@ bool intersectsPoint(Node* node, Point &point) {
     return getDistance(node->circle.center, point) <= node->circle.radius;
 }
 
-vector<Node*> siblingsToBorrowFrom(Node* node) {
+vector<Node*> Node::siblingsToBorrowFrom(Node* nodeToFix) {
     vector<Node*> siblings;
-    for (auto childNode : node->childs) {
-        if (childNode != node) {
+    for (auto childNode : this->childs) {  /// con el this acá, se están tomando los childs del nodeToFix? weno, confío 🙏
+        if (childNode != nodeToFix) {
             if (childNode->isLeaf) {
                 if (childNode->points.size() > m) siblings.push_back(childNode);
             } else {
@@ -248,26 +248,80 @@ vector<Node*> siblingsToBorrowFrom(Node* node) {
     return siblings;
 }
 
-Point getClosestCentroidTo(Node* node) {
-    Point* p = nullptr;
+Entry* Node::getClosestCentroidTo(Node* node) {
+    Entry* entry = new Entry();
 
-    // Falta cambiar
     if (node->isLeaf) {
-        for (auto point : node->points) {
-            if (p == nullptr || getDistance(point, node->circle.center) < getDistance(*p, node->circle.center)) {
-                p = &point;
+        entry->value = 0;
+        int mi = 0;
+        // cout << "LEN DE POINTS: " << this->points.size() << endl;
+
+        for (int i=0; i<this->points.size(); i++) {
+            if (mi == 0 || getDistance(points[i], node->circle.center) < getDistance(*entry->point, node->circle.center)) {
+                cout << points[i][0] << ", " << points[i][1] << endl;
+                entry->point = &points[i];
+
+                // cout << (*entry->point)[0] << ", " << (*entry->point)[1] << endl;
             }
+            cout << (*entry->point)[0] << ", " << (*entry->point)[1] << endl;
+            cout << mi++ << endl;
+            // cout << "TERMINA IT" << endl;
         }
-    } else {
-        for (auto child : node->childs) {
-            if (p == nullptr || getDistance(child->circle.center, node->circle.center) < getDistance(*p, node->circle.center)) {
-                p = &child->circle.center;
+        /*
+        for (auto point : this->points) {
+            if (mi == 0 || getDistance(point, node->circle.center) < getDistance(*entry->point, node->circle.center)) {
+                cout << "eMtroo\n";
+                cout << point[0] << ", " << point[1] << endl;
+                (*entry->point)[0] = point[0];
+                (*entry->point)[1] = point[1];
+
+                cout << (*entry->point)[0] << ", " << (*entry->point)[1] << endl;
+                cout << "eMtroo2\n";
             }
+            cout << (*entry->point)[0] << ", " << (*entry->point)[1] << endl;
+            cout << mi++ << endl;
+            cout << "TERMINA IT" << endl;
+        }
+        */
+        cout << "FUERA DEL FOR: " << (*entry->point)[0] << ", " << (*entry->point)[1] << endl;
+    } else {
+        entry->value = 1;
+        int mi = 0;
+        for (auto child : this->childs) {
+            if (mi == 0 || getDistance(child->circle.center, node->circle.center) < getDistance(entry->node->circle.center, node->circle.center)) {
+                entry->node = child;
+            }
+            mi++;
         }
     }
-    return *p;
+    cout<<"salio y retorna entry\n";
+    if (entry->value == 0)
+        cout << (*entry->point)[0] << ", " << (*entry->point)[1] << endl;
+    
+    
+    return entry;
 }
 
+static bool closerThan(Entry* closestEntryInNode, Entry* closestEntry, Node *targetNode) {
+    // cout << "CLOSER THAN" << endl;
+
+    if (closestEntryInNode->value) {  // node
+        if (closestEntry == nullptr ||
+            getDistance(*closestEntryInNode->point, targetNode->circle.center) <
+            getDistance(*closestEntry->point, targetNode->circle.center)
+            )
+            return true;
+    } else {                    // point
+        if (closestEntry == nullptr ||
+            getDistance(closestEntryInNode->node->circle.center, targetNode->circle.center) <
+            getDistance(closestEntry->node->circle.center, targetNode->circle.center)
+            )
+            return true;
+    }
+    return false;
+}
+
+/*
 static bool closerThan(Point &closestEntryInNode, Point *closestEntry, Node *targetNode) {
     if (closestEntry == nullptr ||
         getDistance(closestEntryInNode, targetNode->circle.center) <
@@ -276,42 +330,76 @@ static bool closerThan(Point &closestEntryInNode, Point *closestEntry, Node *tar
         return true;
     return false;
 }
+*/
 
-static pair<Point, Node*> findClosestEntryInNodesList(vector<Node*> &nodes, Node* targetNode) {
-    Point* closestEntry = nullptr;
+static pair<Entry*, Node*> findClosestEntryInNodesList(vector<Node*> &nodes, Node* targetNode) {
+    Entry* closestEntry = nullptr;
     Node* closestNode = nullptr;
     for (auto node : nodes) {
-        Point closestEntryInNode = getClosestCentroidTo(targetNode);
+        Entry* closestEntryInNode = node->getClosestCentroidTo(targetNode);
         if (closerThan(closestEntryInNode, closestEntry, targetNode)) {
-            closestEntry = &closestEntryInNode;
+            cout << (*closestEntryInNode->point)[0] << ", " << (*closestEntryInNode->point)[1] << endl;
+            closestEntry = closestEntryInNode;
+            closestNode = node;
+        }
+    }
+    cout << "FINDCLOSESTENTRY:\n";
+    cout << (*closestEntry->point)[0] << ", " << (*closestEntry->point)[1] << endl;
+    return make_pair(closestEntry, closestNode);
+}
+
+/*
+static pair<Node*, Node*> findClosestEntryInNodesList(vector<Node*> &nodes, Node* targetNode) {
+    Node* closestEntry = nullptr;   // nodo que va a entrar al nodo que incumple
+    Node* closestNode = nullptr;    // nodo del que se va a tomar prestado el entry y debe actualizar su bunding
+    for (auto node : nodes) {
+        // el centro del entry
+        Point closestEntryInNode = node->getClosestCentroidTo(targetNode);
+        if (closerThan(closestEntryInNode, closestEntry, targetNode)) {
+            closestEntry = closestEntryInNode;
             closestNode = node;
         }
     }
     return make_pair(*closestEntry, closestNode);
 }
+*/
 
-void Node::addEntry(Point* p) {
+void Node::addEntry(Entry* e) {
+    if(e->value == 0){   
+        this->points.push_back(*e->point);
+        cout << "addEntry | Value:0   \n";
+    } else {
+        this->childs.push_back(e->node);
+        cout << "addEntry | Value:1   \n";
 
+    }
 }
 
-void Node::deleteEntry(Point* p) {
-    // aqui si son las 2 am y F
+void Node::deleteEntry(Entry* e) {
     int index, i = 0;
-    if (this->isLeaf) {
+    if (e->value == 0) {
+        cout << "deleteEntry | Value:0   \n";
         for (auto point : this->points) {
-            if (point == *p) {  // comparar punto con punto
+            cout << "ENTRO AL FOR" << endl;
+            if (areEqualPoints(point, *e->point)) {  // comparar punto con punto
+                cout << "ENTRO AL IF" << endl;
                 index = i;
+                cout << i << endl;
                 break;
             }
             i++;
         }
         // borrar
+        cout << "delete entry, point to delete" << endl;
+        cout << points[index][0] << ", " << points[index][1] << endl;
         auto deleteIndex = this->points.begin() + index;
         this->points.erase(deleteIndex);
     } else {
+        cout << "deleteEntry | Value:1   \n";
         for (auto node : this->childs) {
-            if (node->circle.center == *p) {  // comparar centroide con punto
+            if (areEqualPoints(node->circle.center, e->node->circle.center)) {  // comparar centroide con punto
                 index = i;
+                cout << i << endl;
                 break;
             }
             i++;
@@ -322,20 +410,32 @@ void Node::deleteEntry(Point* p) {
     }
 }
 
-static void borrowFromSiblings(Node* node, vector<Node*> siblings) {
-    auto p = findClosestEntryInNodesList(siblings, node);
-    auto closestEntry = &p.first;
-    auto closestSibling = p.second;
+Node* Node::findSiblingToMergeTo(Node* nodeToFix) {
+    if (this->childs.size() < 2) return nullptr;
 
+    for (int i = 0; i < this->childs.size(); i++) { 
+        if (this->childs[i] == nodeToFix) {
+            if (i == 0) return this->childs[i+1];
+            else return this->childs[i-1];
+        }
+    }
+    return nullptr;
+}
+
+static void borrowFromSiblings(Node* node, vector<Node*> siblings) {
+    auto e = findClosestEntryInNodesList(siblings, node);
+    auto closestEntry = e.first;
+    auto closestSibling = e.second;
+    
     closestSibling->deleteEntry(closestEntry);
     updateBoundingEnvelope(closestSibling);
-
+    cout << "BORRO ENTRY Y VA AGREGAR OTRO\n";
     node->addEntry(closestEntry);
     updateBoundingEnvelope(node);
 }
 
 static Node* merge(Node* firstNode, Node* secondNode) {
-    if(firstNode->isLeaf == secondNode->isLeaf) {
+    if (firstNode->isLeaf == secondNode->isLeaf) {
         if (firstNode->isLeaf) {
             vector<Point> c(std::begin(firstNode->points), std::end(firstNode->points));
             c.insert(c.end(), secondNode->points.begin(), secondNode->points.end());
@@ -346,12 +446,14 @@ static Node* merge(Node* firstNode, Node* secondNode) {
             return new Node(false, c);
         }
     }
+    cout << "NO VA A LLEGAR" << endl;
+    return nullptr;
 }
 
 void Node::mergeChildren(Node* firstChild, Node* secondChild) {
     if (secondChild != nullptr) {
         Node* newchild = merge(firstChild, secondChild);
-
+        cout << "MERGE CHILDREN\n";
         /// NO SÉ SI SE PUEDEN BUSCAR PUNTEROS CON FIND
         vector<Node*>::iterator pos = find(this->childs.begin(), this->childs.end(), firstChild);
         if(pos!=this->childs.end()) 
@@ -371,16 +473,18 @@ pair<bool, bool> recursiveRemove(Node* node, Point point) {
         bool areEqual = true;
         int index = -1;
         for (int i=0; i<node->points.size(); i++) {
+            /*
             for (int j=0; j<node->points[i].size(); j++) {
-                if (node->points[i][j] == point[j])
+                if (node->points[i][j] != point[j])
                     areEqual = false;
             }
+            */
+
+            areEqual = areEqualPoints(node->points[i], point);
 
             if (areEqual) {             // Found
                 index = i;
                 break;
-            } else {                   // Not found
-                areEqual = true;
             }
         }
         if (areEqual && index != -1) {
@@ -415,20 +519,35 @@ pair<bool, bool> recursiveRemove(Node* node, Point point) {
         }
         return make_pair(deleted, false);
     } else {
-        auto siblings = siblingsToBorrowFrom(nodeToFix);
+        auto siblings = node->siblingsToBorrowFrom(nodeToFix);
         if (!siblings.empty()) {
             borrowFromSiblings(nodeToFix, siblings);
         } else {
-            // TODO
+            // 
             node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
         }
         updateBoundingEnvelope(node);
+
         return make_pair(true, node->childs.size() < m);
     }
 }
 
 void SSTree::remove(Point &point) {
     recursiveRemove(root, point);
+
+    // wa imprimir los nodos después del delete creo
+    if (root->isLeaf) {
+        for (int i=0; i<this->root->points.size(); i++) {
+            cout << "x:" << root->points[i][0] << ", y:" << root->points[i][1] << " - ";
+        }
+    } else {
+        for (int i=0; i<this->root->childs.size(); i++) {
+            for (int j=0; j<this->root->childs[i]->points.size(); j++)
+                cout << "x:" << root->childs[i]->points[j][0] << ", y:" << root->childs[i]->points[j][1] << " - ";
+            cout << " *** ";
+        }
+    }
+    cout << "" << endl;
 }
 
 int colorIdx = 0;
