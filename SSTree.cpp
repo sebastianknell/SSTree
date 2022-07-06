@@ -478,7 +478,6 @@ pair<bool, bool> recursiveRemove(Node* node, Point point) {
         if (!siblings.empty()) {
             borrowFromSiblings(nodeToFix, siblings);
         } else {
-            cout << "MERGE CHILDREN" << endl;
             node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
         }
 
