@@ -1,0 +1,3 @@
+/home/jlr/Desktop/CICLO 7/SSTree/build/CMakeFiles/rebuild_cache.dir
+/home/jlr/Desktop/CICLO 7/SSTree/build/CMakeFiles/edit_cache.dir
+/home/jlr/Desktop/CICLO 7/SSTree/build/CMakeFiles/SSTree.dir
