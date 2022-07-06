@@ -21,15 +21,6 @@ using namespace std;
 
 using Point = vector<double>;
 
-static bool areEqualPoints(Point p1, Point p2) {
-    for (int i = 0; i < DIM; i++) {
-        if (fabs(p1[i] - p2[i]) > 20.0) {
-            return false;
-        }
-    }
-    return true;
-}
-
 extern int radius;
 static cv::Scalar colors[] = {
         {106, 100, 208},
@@ -44,7 +35,6 @@ struct Circle {Point center; double radius; Circle(): center(DIM), radius(0) {}}
 
 struct Entry;
 
-
 struct Node {
     bool isLeaf;
     Circle circle;
@@ -52,7 +42,7 @@ struct Node {
     vector<Point> points; // valido si es hoja
     explicit Node(bool isLeaf): isLeaf(isLeaf) {};
 
-    Node(){}
+    Node() {}
 
     Node(bool isLeaf, vector<Point> pnts) {
         this->isLeaf = isLeaf;
@@ -77,21 +67,21 @@ struct Node {
 struct Entry {
     bool value; // 0 = Point, 1 = Node
     Node* node;
-    Point* point;
+    Point point;
 
     Entry() {
-        node = new Node;
-        point = new Point;
+        value = false;
+        node = nullptr;
     };
 
     Entry(Node* n) {
         node = n;
-        value = 1;
+        value = true;
     }
 
-    Entry(Point* p) {
+    Entry(Point p) {
         point = p;
-        value = 0;
+        value = false;
     }
 };
 
