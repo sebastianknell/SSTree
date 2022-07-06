@@ -19,13 +19,9 @@ static bool isInCircle(Point &p, Point &center) {
 static double getMean(vector<Point> &points, int dim){
     double sum = 0;
     int i=0;
-    cout << "ENTRO GETMEAN, size: " << points.size() << endl;
     for(auto point : points){
-        cout << "IT" << i++ << ", size: " << point.size() << " - ";
         sum += point[dim];
     }
-    cout << endl;
-    cout << "PASO GETMEAN" << endl;
     return (sum/points.size());
 }
 
@@ -74,12 +70,7 @@ static double getVarianceInRange(vector<Point> points, int direction, int first,
 }
 
 static vector<Point> getCentroids(Node* node) {
-    if (node->isLeaf)
-        cout << "IN GET CENTROIDS IS LEAF - NUMBER OF POINTS: " << node->points.size() << " AND NUMBER OF CHILDS: " << node->childs.size() << endl;
-    else
-        cout << "IN GET CENTROIDS IS NOT LEAF - NUMBER OF POINTS: " << node->points.size() << " AND NUMBER OF CHILDS: " << node->childs.size() << endl;
-
-    if (node->isLeaf) return node->points;
+ if (node->isLeaf) return node->points;
     vector<Point> centroids;
     for (auto &c : node->childs)
         centroids.push_back(c->circle.center);
@@ -152,30 +143,9 @@ static int findSplitIndex(Node* node) {
 
 void updateBoundingEnvelope(Node* node) {
     auto points = getCentroids(node);
-    /*
-    for (auto p : points) {
-        if (p.size() < 2) {
-            cout << "EL PROBLEMA ESTA ACA, SIZE: " << p.size() << endl;
-        }
-
-        //cout << p[0] << ", " << p[1] << " - ";
-    }
-    cout << endl;
-    */
-
     for (int i = 0 ; i < DIM ; i++) {
         node->circle.center[i] = getMean(points, i);
         node->circle.radius = getMaxDistance(node);
-        //cout << "Y: " << i << ", center: " << node->circle.center[i] << endl;
-    }
-}
-
-// Not used
-Node* searchParentLeaf(Node* node, Point &target){
-    if (node->isLeaf) return node;
-    else {
-        auto child = findClosestChild(node, target);
-        return searchParentLeaf(child, target);
     }
 }
 
@@ -421,7 +391,6 @@ static Node* merge(Node* firstNode, Node* secondNode) {
 }
 
 void Node::mergeChildren(Node* firstChild, Node* secondChild) {
-    cout << "Mergechildren\n";
     if (secondChild != nullptr) {
         Node* newchild = merge(firstChild, secondChild);
         for (int i=0; i<this->childs.size(); i++) {
