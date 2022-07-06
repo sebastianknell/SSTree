@@ -22,7 +22,6 @@ using namespace std;
 using Point = vector<double>;
 
 static bool areEqualPoints(Point p1, Point p2) {
-    // cout << p1[0] << " " << p1[1] << "-" << p2[0] << " " << p2[1] << endl;
     for (int i = 0; i < DIM; i++) {
         if (fabs(p1[i] - p2[i]) > 20.0) {
             return false;
@@ -45,9 +44,6 @@ struct Circle {Point center; double radius; Circle(): center(DIM), radius(0) {}}
 
 struct Entry;
 
-//struct Node;
-
-//void updateBoundingEnvelope(Node* node);
 
 struct Node {
     bool isLeaf;
@@ -66,7 +62,6 @@ struct Node {
     Node(bool isLeaf, vector<Node*> chld) {
         this->isLeaf = isLeaf;
         childs = chld;
-        // updateBoundingEnvelope(this);
     }
 
     ~Node();

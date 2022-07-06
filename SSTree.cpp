@@ -15,13 +15,9 @@ Node::~Node() {
 static double getMean(vector<Point> &points, int dim){
     double sum = 0;
     int i=0;
-    cout << "ENTRO GETMEAN, size: " << points.size() << endl;
     for(auto point : points){
-        cout << "IT" << i++ << ", size: " << point.size() << " - ";
         sum += point[dim];
     }
-    cout << endl;
-    cout << "PASO GETMEAN" << endl;
     return (sum/points.size());
 }
 
@@ -70,11 +66,6 @@ static double getVarianceInRange(vector<Point> points, int direction, int first,
 }
 
 static vector<Point> getCentroids(Node* node) {
-    if (node->isLeaf)
-        cout << "IN GET CENTROIDS IS LEAF - NUMBER OF POINTS: " << node->points.size() << " AND NUMBER OF CHILDS: " << node->childs.size() << endl;
-    else
-        cout << "IN GET CENTROIDS IS NOT LEAF - NUMBER OF POINTS: " << node->points.size() << " AND NUMBER OF CHILDS: " << node->childs.size() << endl;
-
     if (node->isLeaf) return node->points;
     vector<Point> centroids;
     for (auto &c : node->childs)
@@ -148,21 +139,10 @@ static int findSplitIndex(Node* node) {
 
 void updateBoundingEnvelope(Node* node) {
     auto points = getCentroids(node);
-    /*
-    for (auto p : points) {
-        if (p.size() < 2) {
-            cout << "EL PROBLEMA ESTA ACA, SIZE: " << p.size() << endl;
-        }
-
-        //cout << p[0] << ", " << p[1] << " - ";
-    }
-    cout << endl;
-    */
-
+    
     for (int i = 0 ; i < DIM ; i++) {
         node->circle.center[i] = getMean(points, i);
         node->circle.radius = getMaxDistance(node);
-        //cout << "Y: " << i << ", center: " << node->circle.center[i] << endl;
     }
 }
 
@@ -271,8 +251,6 @@ vector<Node*> Node::siblingsToBorrowFrom(Node* nodeToFix) {
 Entry* Node::getClosestCentroidTo(Node* node) {
     Entry* entry = new Entry();
 
-    //cout << "JAJAJJAJAJJAJAJAJAJAJAJAJJAJA" << endl;
-
     if (node->isLeaf) {
         entry->value = 0;
         for (int i=0; i<this->points.size(); i++) {
@@ -284,16 +262,12 @@ Entry* Node::getClosestCentroidTo(Node* node) {
     } else {
         entry->value = 1;
         for (int i=0; i<this->childs.size(); i++) {
-            // cout << "i: " << i << ", size: " << this->childs.size() << endl;
             if (i == 0 || getDistance(childs[i]->circle.center, node->circle.center) 
                 < getDistance(entry->node->circle.center, node->circle.center)) {
-                // cout << "updating" << endl; 
                 entry->node = this->childs[i];
             }
         }
-        // cout << "FINALIZO EL FOR" << endl;
     }
-    //cout << "RETORNA ENTRY" << endl;
     
     return entry;
 }
@@ -321,27 +295,11 @@ static pair<Entry*, Node*> findClosestEntryInNodesList(vector<Node*> nodes, Node
     int i=0;
     for (auto node : nodes) {
         Entry* closestEntryInNode = node->getClosestCentroidTo(targetNode);
-        cout << "GET CLOSEST CENTROID" << endl;
         if (closerThan(closestEntryInNode, closestEntry, targetNode)) {
-            cout << "----------------- VALUE: " << closestEntryInNode->value << endl;
-            if (closestEntryInNode->value) {
-                if (closestEntryInNode->node->isLeaf) {
-                    cout << "ES HOJA - ";
-                    cout << "PUNTOS: " << closestEntryInNode->node->points.size() << endl;
-                } else {
-                    cout << "NO ES HOJA - ";
-                    cout << "HIJOS: " << closestEntryInNode->node->childs.size() << endl;
-                }
-            }
-            else
-                cout << "punto: " << closestEntryInNode->point->size() << endl;
-            //cout << (*closestEntryInNode->point)[0] << ", " << (*closestEntryInNode->point)[1] << endl;
             closestEntry = closestEntryInNode;
             closestNode = node;
         }
-        cout << "i: " << i++ << endl;
     }
-    cout << "SALIO" << endl;
     return make_pair(closestEntry, closestNode);
 }
 
@@ -411,7 +369,6 @@ static void borrowFromSiblings(Node* node, vector<Node*> siblings) {
 }
 
 static Node* merge(Node* firstNode, Node* secondNode) {
-    //cout << "MergeChikito\n";
     if (firstNode->isLeaf == secondNode->isLeaf) {
         if (firstNode->isLeaf) {
             vector<Point> c;
@@ -445,7 +402,6 @@ static Node* merge(Node* firstNode, Node* secondNode) {
 }
 
 void Node::mergeChildren(Node* firstChild, Node* secondChild) {
-    cout << "Mergechildren\n";
     if (secondChild != nullptr) {
         Node* newchild = merge(firstChild, secondChild);
         for (int i=0; i<this->childs.size(); i++) {
@@ -520,13 +476,10 @@ pair<bool, bool> recursiveRemove(Node* node, Point point) {
     } else {
         auto siblings = node->siblingsToBorrowFrom(nodeToFix);
         if (!siblings.empty()) {
-            //cout << "BORROW FROM SIBLINGS" << endl;
             borrowFromSiblings(nodeToFix, siblings);
-            //cout << "SALIO DEL BORROW FROM SIBLINGS" << endl;
         } else {
             cout << "MERGE CHILDREN" << endl;
             node->mergeChildren(nodeToFix, node->findSiblingToMergeTo(nodeToFix));
-            // updateBoundingEnvelope(node);
         }
 
         updateBoundingEnvelope(node);
@@ -540,21 +493,7 @@ void SSTree::remove(Point &point) {
 
     if (root->childs.size() == 1) {
         root = root->childs[0];
-        //updateBoundingEnvelope(root);
     }
-    
-    /*cout << "AAAAAAAAAAAAAAAAAAAAAAAA" << endl;
-    cout << "n of childs: " << this->root->childs.size() << endl;
-    for (auto c : this->root->childs) {
-        if (c->isLeaf) {
-            cout << "child with " << c->points.size() << " points, radio = " << c->circle.radius << ", center = " << c->circle.center.size() << endl;
-        } else {
-            cout << "child with " << c->childs.size() << " childs" << endl;
-            for (auto p : c->childs) {
-                cout << "child with " << p->points.size() << " points, radio = " << p->circle.radius << c->circle.radius << ", center = " << c->circle.center.size() << endl;
-            }
-        }
-    }*/
 }
 
 int colorIdx = 0;
